@@ -1,0 +1,81 @@
+---
+id: questions
+title: "Every Question Type"
+---
+
+:::mcf-activity
+type: practice
+id: choice-practice
+title: "Choice practice"
+randomize: false
+:::
+
+```mcf-question
+id: one
+type: multiple_choice
+prompt: "Which format is this course written in?"
+options:
+  - id: mcf
+    text: "**MCF**"
+  - id: pdf
+    text: "PDF"
+answer: mcf
+hint: "Look at the course title."
+explanation: "This source package uses MCF 1.0."
+```
+
+```mcf-question
+id: many
+type: multiple_select
+prompt: "Select the MCF 1.0 activity types."
+options:
+  - id: notes
+    text: "Notes"
+  - id: practice
+    text: "Practice"
+  - id: lab
+    text: "Lab"
+answer: [notes, practice]
+```
+
+```mcf-question
+id: boolean
+type: true_false
+prompt: "MCF requires a backend."
+answer: false
+```
+
+:::mcf-end
+
+:::mcf-activity
+type: assessment
+id: response-assessment
+title: "Written and numeric responses"
+passing_score: 0.7
+:::
+
+```mcf-question
+id: number
+type: numeric
+prompt: "What is $6 \times 7$?"
+answer: 42
+tolerance: 0
+explanation: "$6 \times 7 = 42$."
+```
+
+```mcf-question
+id: words
+type: short_answer
+prompt: "Type the three-letter format name."
+answer: "MCF"
+```
+
+```mcf-question
+id: reflection
+type: essay
+prompt: |
+  In a paragraph, describe how you might use a local-first course.
+required: true
+```
+
+:::mcf-end

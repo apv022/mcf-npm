@@ -1,0 +1,6 @@
+mcf: '1.0'
+id: invalid
+title: Invalid
+language: en
+chapters:
+  - source: ../outside

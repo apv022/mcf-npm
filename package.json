@@ -1,0 +1,49 @@
+{
+  "name": "mcf-npm",
+  "version": "1.0.0",
+  "description": "Reference Node.js compiler for MCF 1.0 courses",
+  "type": "module",
+  "bin": {
+    "mcf": "dist/src/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test dist/test/parser.test.js dist/test/compiler.test.js",
+    "lint": "eslint src test --max-warnings=0",
+    "format:check": "prettier --check .",
+    "compile:examples": "npm run build && node dist/src/cli.js compile examples/minimal --output courses && node dist/src/cli.js compile examples/showcase --output courses"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcf",
+    "education",
+    "course",
+    "compiler",
+    "offline"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "js-yaml": "^4.1.0",
+    "katex": "^0.16.22",
+    "marked": "^16.1.1",
+    "sanitize-html": "^2.17.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/katex": "^0.16.7",
+    "@types/node": "^24.0.13",
+    "@types/sanitize-html": "^2.16.0",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0"
+  }
+}
