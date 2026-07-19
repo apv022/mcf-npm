@@ -1,13 +1,16 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
 import { Command } from 'commander';
 import { compile } from './compiler.js';
 import { ValidationError } from './model.js';
 import { parseCourse } from './parser.js';
 
+const require = createRequire(import.meta.url);
+const packageJson = require('../../package.json') as { version: string };
 const program = new Command()
   .name('mcf')
   .description('Compile MCF 1.0 courses into static offline readers')
-  .version('1.0.0');
+  .version(packageJson.version);
 function fail(error: unknown): never {
   if (error instanceof ValidationError) console.error(error.message);
   else console.error(`Error: ${(error as Error).message}`);

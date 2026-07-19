@@ -16,6 +16,7 @@ declare global {
   }
 }
 const course = window.MCF_COURSE;
+if (location.protocol === 'file:') document.documentElement.classList.add('file-protocol');
 const state: ProgressState = loadState(course);
 const lessonId = document.body.dataset.lesson;
 const lesson = course.lessons.find((item) => item.id === lessonId);

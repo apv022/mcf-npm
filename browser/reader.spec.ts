@@ -101,4 +101,21 @@ test('responses restore and notes completion updates progress', async ({ page })
   await expect(page.locator('audio')).toHaveAttribute('src', '../assets/audio/t-rex-roar.mp3');
   await expect(page.locator('video')).toHaveAttribute('src', '../assets/video/flower.mp4');
   await expect(page.locator('iframe')).toHaveAttribute('src', /youtube-nocookie\.com\/embed/);
+  await expect(page.locator('.remote-video-fallback')).toBeVisible();
+  await expect(page.locator('.remote-video-fallback')).toHaveAttribute(
+    'href',
+    'https://www.youtube.com/watch?v=Dw_tGRblTXk',
+  );
+});
+
+test('phone layout stacks the shell without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(lessonUrl('questions'));
+  await expect(page.locator('.course-shell')).toHaveCSS('display', 'block');
+  await expect(page.locator('.sidebar nav')).toHaveCSS('display', 'flex');
+  const sizes = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+  }));
+  expect(sizes.document).toBeLessThanOrEqual(sizes.viewport);
 });

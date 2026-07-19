@@ -3,22 +3,47 @@
   "version": "1.0.0",
   "description": "Reference Node.js compiler for MCF 1.0 courses",
   "type": "module",
+  "main": "./dist/src/compiler.js",
+  "types": "./dist/src/compiler.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/compiler.d.ts",
+      "import": "./dist/src/compiler.js"
+    },
+    "./model": {
+      "types": "./dist/src/model.d.ts",
+      "import": "./dist/src/model.js"
+    },
+    "./parser": {
+      "types": "./dist/src/parser.d.ts",
+      "import": "./dist/src/parser.js"
+    },
+    "./render": {
+      "types": "./dist/src/render.d.ts",
+      "import": "./dist/src/render.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
-    "mcf": "dist/src/cli.js"
+    "mcf": "./dist/src/cli.js"
   },
   "files": [
-    "dist",
+    "dist/src/*.js",
+    "dist/src/*.d.ts",
+    "dist/reader",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && node scripts/build-reader.mjs",
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && tsc && node scripts/build-reader.mjs",
     "mcf": "node dist/src/cli.js",
     "test": "npm run build && node --test dist/test/*.test.js",
     "test:browser": "npm run build && node dist/src/cli.js compile examples/showcase --output .browser-courses && playwright test",
     "lint": "eslint src test browser scripts playwright.config.ts --max-warnings=0",
     "format:check": "prettier --check .",
-    "compile:examples": "npm run build && node dist/src/cli.js compile examples/minimal --output courses && node dist/src/cli.js compile examples/showcase --output courses"
+    "compile:examples": "npm run build && node dist/src/cli.js compile examples/minimal --output courses && node dist/src/cli.js compile examples/calculus-i --output courses && node dist/src/cli.js compile examples/showcase --output courses",
+    "prepack": "npm run build"
   },
   "engines": {
     "node": ">=20"
@@ -31,6 +56,14 @@
     "offline"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apv022/mcf-npm.git"
+  },
+  "homepage": "https://github.com/apv022/mcf-npm#readme",
+  "bugs": {
+    "url": "https://github.com/apv022/mcf-npm/issues"
+  },
   "dependencies": {
     "commander": "^14.0.0",
     "js-yaml": "^4.1.0",

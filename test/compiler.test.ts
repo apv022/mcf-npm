@@ -31,6 +31,12 @@ test('compiles end to end and preserves another library course', async () => {
     await fs.readFile(path.join(output, 'mcf-showcase', 'lessons', 'rich-content.html'), 'utf8'),
     /\.\.\/katex\/katex\.min\.css/,
   );
+  const lessonHtml = await fs.readFile(
+    path.join(output, 'mcf-showcase', 'lessons', 'rich-content.html'),
+    'utf8',
+  );
+  assert.match(lessonHtml, /^<!doctype html>\n<html lang="en">\n<head>/);
+  assert.ok(lessonHtml.split('\n').length > 30);
   assert.ok(
     (await fs.readdir(path.join(output, 'mcf-showcase', 'katex', 'fonts'))).some((file) =>
       file.endsWith('.woff2'),

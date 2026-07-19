@@ -35,6 +35,6 @@ const learning = 'local-first';
 
 @[video](../../../assets/video/flower.mp4 "CC0 video sample")
 
-@[video](youtube:dQw4w9WgXcQ "Remote video example")
+@[video](https://www.youtube.com/watch?v=Dw_tGRblTXk "Remote video example")
 
 :::mcf-end

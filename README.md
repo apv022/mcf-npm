@@ -1,6 +1,6 @@
 # mcf-npm
 
-`mcf-npm` is the reference Node.js/NPM compiler for **MCF 1.0 — Modular Curriculum Format**. It validates a human-readable MCF source package and compiles it into a polished static course that learners can copy, download, and open directly in a browser.
+`mcf-npm` is the reference Node.js/npm compiler for **MCF 1.0 — Modular Curriculum Format**. It validates a human-readable MCF source package and compiles it into a polished static course that learners can copy, download, and open directly in a browser.
 
 MCF is the source-format standard. This project is one compiler implementation. Its static reader, navigation, grading UI, browser storage, progress, badges, and output layout are implementation features—not requirements added to MCF.
 
@@ -9,7 +9,7 @@ MCF is the source-format standard. This project is one compiler implementation. 
 Node.js 20 or newer is required to compile a course. Learners do not need Node.js.
 
 ```bash
-npm install
+npm ci
 npm run build
 npm run mcf -- validate examples/minimal
 npm run mcf -- compile examples/minimal
@@ -18,7 +18,19 @@ npm run mcf -- compile examples/minimal --output ./courses
 
 Replace `examples/minimal` with the path to your own MCF package. The `npm run mcf -- ...` form is the recommended repository workflow because it requires no global installation or administrator permissions.
 
-If you want a bare `mcf` command while developing, `npm link` creates a global link. That optional command needs write access to NPM's global prefix and may fail with `EACCES` on system-managed Node.js installations. Prefer the command above, configure a user-owned NPM prefix, or use a Node version manager; do not run project installation commands with `sudo`. Published-package users can also run the CLI with `npx mcf-npm`.
+If you want a bare `mcf` command while developing, `npm link` creates a global link. That optional command needs write access to npm's global prefix and may fail with `EACCES` on system-managed Node.js installations. Prefer the command above, configure a user-owned npm prefix, or use a Node version manager; do not run project installation commands with `sudo`. Published-package users can also run the CLI with `npx mcf-npm`.
+
+The compiler also exposes a small ESM API:
+
+```js
+import { compile } from 'mcf-npm';
+import { parseCourse } from 'mcf-npm/parser';
+
+await parseCourse('./my-course');
+await compile('./my-course', './courses');
+```
+
+See [Authoring MCF courses](docs/authoring.md) for package layout, metadata, activities, questions, math, media, validation rules, and complete syntax examples.
 
 Compilation creates a library and a self-contained directory for each course:
 
@@ -49,6 +61,8 @@ python -m http.server --directory courses
 ```
 
 Remote media still needs a network connection. The core UI, CSS, JavaScript, lessons, and local assets do not.
+
+YouTube requires an HTTP referrer for inline playback. Under direct `file://` use, the reader therefore shows a thumbnail link that opens the video on YouTube; serve the library with the command above to use the inline player.
 
 ## MCF 1.0 coverage
 
@@ -89,6 +103,7 @@ npm run compile:examples
 ```
 
 - `examples/minimal` is the smallest useful valid package.
+- `examples/calculus-i` is a complete six-chapter reference course with local mathematical artwork.
 - `examples/showcase` covers every activity and question type, Markdown, math, images, audio/video declarations, a remote embed, feedback, progress, and completion.
 
 The showcase includes original SVG artwork and CC0 audio/video samples from MDN's interactive examples.
@@ -102,16 +117,19 @@ npm run lint
 npm run format:check
 npm run compile:examples
 npm run test:browser
+npm pack --dry-run
 ```
 
-Tests cover package/YAML and lesson parsing, activity boundaries, all question types, essay criteria, answer validation, path traversal and symlink containment, sanitized rendering, offline KaTeX assets, library preservation, and end-to-end compilation. Playwright exercises the compiled reader directly through `file://`, including retry behavior, assessments, persistence, completion, media, and progress transfer. CI installs Chromium, runs both suites, and compiles both examples on Node.js 22.
+`npm run build` removes and recreates `dist/`, compiles Node.js TypeScript, bundles the browser reader, and copies reader CSS. `npm run compile:examples` rebuilds all three examples into the ignored `courses/` directory. `prepack` performs a clean build before npm assembles the package.
 
-See [Architecture](docs/architecture.md) for module boundaries and data flow and the [MCF 1.0 conformance checklist](docs/conformance.md) for requirement-level coverage. Contributions should include focused tests, keep dependencies limited, preserve MCF ordering and semantics, and distinguish standard conformance from reader behavior. By contributing, you agree that your changes may be distributed under the MIT license.
+Tests cover package/YAML and lesson parsing, activity boundaries, all question types, essay criteria, answer validation, path traversal and symlink containment, sanitized rendering, offline KaTeX assets, library preservation, readable generated HTML, and end-to-end compilation. Playwright exercises the compiled reader directly through `file://`, including retry behavior, assessments, persistence, completion, media, responsive layout, and progress transfer. CI installs Chromium, runs both suites, and compiles all three examples on Node.js 22.
+
+See [Architecture](docs/architecture.md) for module boundaries, repository layout, generated output, and publishing; [Authoring MCF courses](docs/authoring.md) for source syntax; and the [MCF 1.0 conformance checklist](docs/conformance.md) for requirement-level coverage. Contributions should include focused tests, keep dependencies limited, preserve MCF ordering and semantics, and distinguish standard conformance from reader behavior. By contributing, you agree that your changes may be distributed under the MIT license.
 
 ## Known limitations
 
 - Firefox may require a local HTTP server for the best local-file experience.
-- YouTube is the only provider-style remote video reference rendered as an embed; other HTTPS media remain links or native media URLs.
+- YouTube is the only provider-style remote video reference rendered as an embed. Both `youtube:VIDEO_ID` and normal YouTube watch/share/embed URLs are accepted; other HTTPS media remain links or native media URLs.
 - Syntax highlighting uses a readable code theme but no language-aware highlighter, keeping generated output small and offline.
 - Essay responses are stored but not graded, as required by MCF 1.0 semantics.
 
@@ -121,4 +139,4 @@ Add support only after an official specification exists. Recommended work is to 
 
 ## License
 
-MIT. Course authors retain rights under the license declared by each course package.
+The compiler and reader implementation are MIT licensed; see `LICENSE`. Course authors retain rights under the license declared by each course package. The Calculus I reference course declares CC-BY-4.0. Showcase SVGs are original CC0-1.0 artwork, and its bundled MDN audio/video fixtures are CC0 as documented in `examples/showcase/assets/README.md`.

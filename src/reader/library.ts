@@ -39,7 +39,7 @@ if (root) {
                 : course.cover
                   ? `${course.id}/${course.cover}`
                   : undefined;
-          return `<a class="course-card" href="${encodeURIComponent(course.id)}/index.html">${cover ? `<img src="${encodeURI(cover)}" alt="">` : '<div class="cover-placeholder">MCF</div>'}<div><span class="eyebrow">${progress === 100 ? 'Completed' : 'Course'}</span><h2>${escape(course.title)}</h2><p>${escape(course.description)}</p><small>${escape((course.authors ?? []).join(', '))}</small><div class="progress"><i style="width:${progress}%"></i></div><b>${progress}%</b></div></a>`;
+          return `<a class="course-card" href="${encodeURIComponent(course.id)}/index.html">${cover ? `<img src="${encodeURI(cover)}" alt="">` : '<div class="cover-placeholder">MCF</div>'}<div class="course-card-content"><h2>${escape(course.title)}</h2><p>${escape(course.description)}</p><div class="course-card-status"><small>${escape((course.authors ?? []).join(', '))}</small><div class="progress"><i style="width:${progress}%"></i></div><b>${progress}%</b></div></div></a>`;
         })
         .join('')
     : '<div class="empty"><h2>No compiled courses yet</h2><p>Compile an MCF package to add it here.</p></div>';

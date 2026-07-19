@@ -11,6 +11,17 @@
 .activity h2 {
   margin: 0.2rem 0 1rem;
 }
+.questions > p > img:only-child {
+  display: block;
+  width: 100%;
+  max-height: min(65vh, 560px);
+  margin: 1.5rem auto 2rem;
+  padding: clamp(0.4rem, 1.5vw, 0.85rem);
+  object-fit: contain;
+  background: #f7fafb;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
 .question {
   margin: 1.5rem 0;
   padding: 1.25rem;
@@ -113,14 +124,35 @@ textarea {
   border: 0;
   border-radius: 0.5rem;
 }
-@media (max-width: 760px) {
-  .course-shell {
-    display: block;
-  }
-  .sidebar nav {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-  .course-card {
-    grid-template-columns: 90px 1fr;
-  }
+.remote-video-fallback {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  min-height: 12rem;
+  border-radius: 0.5rem;
+  background: #102b3a;
+  color: white;
+  text-decoration: none;
+}
+.remote-video-fallback img {
+  width: 100%;
+  height: 100%;
+  min-height: 12rem;
+  object-fit: cover;
+  opacity: 0.65;
+}
+.remote-video-fallback span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  font-weight: 800;
+  text-align: center;
+}
+.file-protocol .remote-media iframe {
+  display: none;
+}
+.file-protocol .remote-video-fallback {
+  display: flex;
 }

@@ -94,12 +94,57 @@ function uniqueLessons(course: Course): Lesson[] {
 }
 function sidebar(course: Course, current?: string): string {
   const prefix = current ? '' : 'lessons/';
-  return `<aside class="sidebar"><a href="../index.html">← Course library</a><h1>${escape(course.title)}</h1><div class="progress"><i data-progress-bar style="width:0"></i></div><b data-progress>0%</b><nav>${course.chapters.map((c) => `<div><div class="chapter-label">${escape(c.title)}</div>${c.lessons.map((l) => `<a class="lesson-link ${l.id === current ? 'current' : ''}" data-lesson-id="${escape(l.id)}" href="${prefix}${encodeURIComponent(l.id)}.html">${escape(l.title)}</a>`).join('')}</div>`).join('')}</nav></aside>`;
+  return `<aside class="sidebar">
+  <a href="../index.html">← Course library</a>
+  <h1>${escape(course.title)}</h1>
+  <div class="progress"><i data-progress-bar style="width:0"></i></div>
+  <b data-progress>0%</b>
+  <nav>
+${course.chapters
+  .map(
+    (chapter) => `    <div>
+      <div class="chapter-label">${escape(chapter.title)}</div>
+${chapter.lessons
+  .map(
+    (lesson) =>
+      `      <a class="lesson-link ${lesson.id === current ? 'current' : ''}" data-lesson-id="${escape(lesson.id)}" href="${prefix}${encodeURIComponent(lesson.id)}.html">${escape(lesson.title)}</a>`,
+  )
+  .join('\n')}
+    </div>`,
+  )
+  .join('\n')}
+  </nav>
+</aside>`;
 }
 function lessonPage(course: Course, lesson: Lesson, index: number, all: Lesson[]): string {
   const prev = all[index - 1],
     next = all[index + 1];
-  const body = `<div class="course-shell">${sidebar(course, lesson.id)}<main class="main"><div class="lesson"><header class="lesson-header"><span class="eyebrow">Lesson ${index + 1} of ${all.length}</span><h1>${escape(lesson.title)}</h1>${lesson.description ? `<p>${escape(lesson.description)}</p>` : ''}</header>${lessonBody(lesson, course)}<div class="badge hidden"><div class="badge-mark">✓</div><h2>Course complete</h2><p>${escape(course.title)}</p><p>Completed <span data-completion-date></span></p></div><nav class="lesson-nav">${prev ? `<a class="button" href="${encodeURIComponent(prev.id)}.html">← ${escape(prev.title)}</a>` : '<span></span>'}${next ? `<a class="button" href="${encodeURIComponent(next.id)}.html">${escape(next.title)} →</a>` : '<a class="button" href="../index.html">Course overview</a>'}</nav></div></main></div><script>window.MCF_COURSE=${JSON.stringify(data(course)).replace(/</g, '\\u003c')}</script>`;
+  const body = `<div class="course-shell">
+${sidebar(course, lesson.id)}
+<main class="main">
+  <div class="lesson">
+    <header class="lesson-header">
+      <span class="eyebrow">Lesson ${index + 1} of ${all.length}</span>
+      <h1>${escape(lesson.title)}</h1>
+      ${lesson.description ? `<p>${escape(lesson.description)}</p>` : ''}
+    </header>
+${lessonBody(lesson, course)}
+    <div class="badge hidden">
+      <div class="badge-mark">✓</div>
+      <h2>Course complete</h2>
+      <p>${escape(course.title)}</p>
+      <p>Completed <span data-completion-date></span></p>
+    </div>
+    <nav class="lesson-nav">
+      ${prev ? `<a class="button" href="${encodeURIComponent(prev.id)}.html">← ${escape(prev.title)}</a>` : '<span></span>'}
+      ${next ? `<a class="button" href="${encodeURIComponent(next.id)}.html">${escape(next.title)} →</a>` : '<a class="button" href="../index.html">Course overview</a>'}
+    </nav>
+  </div>
+</main>
+</div>
+<script>
+window.MCF_COURSE = ${JSON.stringify(data(course), null, 2).replace(/</g, '\\u003c')};
+</script>`;
   return page(
     `${lesson.title} · ${course.title}`,
     course.language,
@@ -134,9 +179,16 @@ async function updateLibrary(output: string, course: Course) {
   const libraryRuntime = await fs.readFile(path.join(readerRoot, 'library.js'), 'utf8');
   await write(
     path.join(output, 'library.js'),
-    `window.MCF_LIBRARY=${JSON.stringify(list).replace(/</g, '\\u003c')};\n${libraryRuntime}`,
+    `window.MCF_LIBRARY = ${JSON.stringify(list, null, 2).replace(/</g, '\\u003c')};\n${libraryRuntime}`,
   );
-  const html = `<main class="library"><header><span class="eyebrow">Local-first learning</span><h1>Course library</h1><p>Your compiled MCF courses, available offline.</p></header><section id="courses" class="course-grid"></section></main>`;
+  const html = `<main class="library">
+  <header>
+    <span class="eyebrow">Local-first learning</span>
+    <h1>Course library</h1>
+    <p>Your compiled MCF courses, available offline.</p>
+  </header>
+  <section id="courses" class="course-grid"></section>
+</main>`;
   await write(
     path.join(output, 'index.html'),
     page('MCF Course Library', 'en', html, 'styles.css', 'library.js'),
@@ -178,7 +230,32 @@ export async function compile(
       path.join(staging, 'lessons', `${lesson.id}.html`),
       lessonPage(course, lesson, i, all),
     );
-  const overview = `<div class="course-shell">${sidebar(course)}<main class="main"><div class="lesson"><span class="eyebrow">MCF course</span><h1>${escape(course.title)}</h1><p>${escape(course.description ?? '')}</p><p>${escape((course.authors ?? []).join(', '))}</p><div class="progress"><i data-progress-bar></i></div><b data-progress>0%</b><p><a class="button" href="lessons/${encodeURIComponent(all[0].id)}.html">Start course</a></p><div class="progress-actions"><button data-export>Export progress</button><label class="button">Import progress<input data-import type="file" accept="application/json" hidden></label></div><div class="badge hidden"><div class="badge-mark">✓</div><h2>Course complete</h2><p>${escape(course.title)}</p><p>Completed <span data-completion-date></span></p></div></div></main></div><script>window.MCF_COURSE=${JSON.stringify(courseData).replace(/</g, '\\u003c')}</script>`;
+  const overview = `<div class="course-shell">
+${sidebar(course)}
+<main class="main">
+  <div class="lesson">
+    <h1>${escape(course.title)}</h1>
+    <p>${escape(course.description ?? '')}</p>
+    <p>${escape((course.authors ?? []).join(', '))}</p>
+    <div class="progress"><i data-progress-bar></i></div>
+    <b data-progress>0%</b>
+    <p><a class="button" href="lessons/${encodeURIComponent(all[0].id)}.html">Start course</a></p>
+    <div class="progress-actions">
+      <button data-export>Export progress</button>
+      <label class="button">Import progress<input data-import type="file" accept="application/json" hidden></label>
+    </div>
+    <div class="badge hidden">
+      <div class="badge-mark">✓</div>
+      <h2>Course complete</h2>
+      <p>${escape(course.title)}</p>
+      <p>Completed <span data-completion-date></span></p>
+    </div>
+  </div>
+</main>
+</div>
+<script>
+window.MCF_COURSE = ${JSON.stringify(courseData, null, 2).replace(/</g, '\\u003c')};
+</script>`;
   await write(
     path.join(staging, 'index.html'),
     page(course.title, course.language, overview, 'styles.css', 'player.js', 'katex/katex.min.css'),

@@ -13,6 +13,15 @@ video,
 audio {
   max-width: 100%;
 }
+img {
+  height: auto;
+}
+figure img {
+  display: block;
+  width: auto;
+  margin-inline: auto;
+  object-fit: contain;
+}
 button,
 input,
 textarea {

@@ -3,6 +3,8 @@ dist/
 courses/
 coverage/
 *.log
+*.tgz
+*.tsbuildinfo
 .DS_Store
 .browser-courses/
 playwright-report/
