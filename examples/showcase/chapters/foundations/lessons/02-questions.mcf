@@ -65,10 +65,10 @@ randomize: true
 id: number
 type: numeric
 points: 2
-prompt: "What is $6 \times 7$?"
+prompt: 'What is $6 \times 7$?'
 answer: 42
 tolerance: 0
-explanation: "$6 \times 7 = 42$."
+explanation: '$6 \times 7 = 42$.'
 ```
 
 ```mcf-question
