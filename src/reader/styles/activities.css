@@ -75,6 +75,19 @@ textarea {
 .assessment-result {
   font-weight: 700;
 }
+.progress-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+.progress-actions > button,
+.progress-actions > .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10rem;
+}
 .badge {
   margin: 2rem 0;
   padding: 1.3rem;
