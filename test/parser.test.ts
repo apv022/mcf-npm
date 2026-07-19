@@ -28,6 +28,21 @@ test('parses all six question types', async () => {
     'short_answer',
     'essay',
   ]);
+  const essay = course.chapters[0].lessons[1].activities[1].questions[2];
+  assert.equal(essay.minimum_words, 12);
+  assert.equal(essay.minimum_sentences, 2);
+  assert.deepEqual(essay.keywords, ['local', 'progress', 'course']);
+  assert.equal(essay.minimum_keywords, 2);
+});
+test('rejects invalid essay completion requirements', () => {
+  const issues: import('../src/model.js').ValidationIssue[] = [];
+  parseLessonSource(
+    '---\nid: bad\ntitle: Bad\n---\n:::mcf-activity\ntype: practice\nid: p\n:::\n```mcf-question\nid: e\ntype: essay\nprompt: Explain\nminimum_words: 0\nkeywords: [one]\nminimum_keywords: 2\n```\n:::mcf-end\n',
+    'bad.mcf',
+    issues,
+  );
+  assert.ok(issues.some((item) => item.message.includes('positive integer')));
+  assert.ok(issues.some((item) => item.message.includes('must not exceed')));
 });
 test('rejects content outside activity boundaries', () => {
   const issues: import('../src/model.js').ValidationIssue[] = [];

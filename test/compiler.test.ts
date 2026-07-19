@@ -14,6 +14,7 @@ test('renders sanitized rich content and interactive questions', async () => {
   assert.match(html, /data-type="multiple_choice"/);
   assert.doesNotMatch(html, /<script/i);
   assert.match(html, /katex/);
+  assert.doesNotMatch(html, /data-answer=/);
 });
 test('compiles end to end and preserves another library course', async () => {
   const output = await fs.mkdtemp(path.join(os.tmpdir(), 'mcf-test-'));
@@ -25,6 +26,21 @@ test('compiles end to end and preserves another library course', async () => {
   assert.match(
     await fs.readFile(path.join(output, 'mcf-showcase', 'player.js'), 'utf8'),
     /localStorage/,
+  );
+  assert.match(
+    await fs.readFile(path.join(output, 'mcf-showcase', 'lessons', 'rich-content.html'), 'utf8'),
+    /\.\.\/katex\/katex\.min\.css/,
+  );
+  assert.ok(
+    (await fs.readdir(path.join(output, 'mcf-showcase', 'katex', 'fonts'))).some((file) =>
+      file.endsWith('.woff2'),
+    ),
+  );
+  assert.ok(await fs.stat(path.join(output, 'mcf-showcase', 'assets', 'audio', 't-rex-roar.mp3')));
+  assert.ok(await fs.stat(path.join(output, 'mcf-showcase', 'assets', 'video', 'flower.mp4')));
+  assert.doesNotMatch(
+    await fs.readFile(path.join(output, 'mcf-showcase', 'player.js'), 'utf8'),
+    /import\s/,
   );
 });
 test('completion uses completed required lessons over all lessons', () => {

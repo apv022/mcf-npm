@@ -12,9 +12,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
-    "test": "npm run build && node --test dist/test/parser.test.js dist/test/compiler.test.js",
-    "lint": "eslint src test --max-warnings=0",
+    "build": "tsc && node scripts/build-reader.mjs",
+    "mcf": "node dist/src/cli.js",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "test:browser": "npm run build && node dist/src/cli.js compile examples/showcase --output .browser-courses && playwright test",
+    "lint": "eslint src test browser scripts playwright.config.ts --max-warnings=0",
     "format:check": "prettier --check .",
     "compile:examples": "npm run build && node dist/src/cli.js compile examples/minimal --output courses && node dist/src/cli.js compile examples/showcase --output courses"
   },
@@ -42,6 +44,8 @@
     "@types/node": "^24.0.13",
     "@types/sanitize-html": "^2.16.0",
     "eslint": "^9.31.0",
+    "esbuild": "^0.25.6",
+    "playwright": "^1.54.1",
     "prettier": "^3.6.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0"

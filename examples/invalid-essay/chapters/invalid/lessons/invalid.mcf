@@ -1,0 +1,20 @@
+---
+id: invalid-essay
+title: 'Invalid essay'
+---
+
+:::mcf-activity
+type: assessment
+id: invalid-assessment
+:::
+
+```mcf-question
+id: invalid-requirements
+type: essay
+prompt: 'This fixture must fail validation.'
+minimum_words: 0
+keywords: [one]
+minimum_keywords: 2
+```
+
+:::mcf-end

@@ -39,6 +39,15 @@ function identifier(data: Data, key: string, file: string, issues: ValidationIss
   if (!ID.test(value)) issue(issues, file, `Identifier "${value}" must match [a-z][a-z0-9._-]*.`);
   return value;
 }
+function optionalText(
+  data: Data,
+  key: string,
+  file: string,
+  issues: ValidationIssue[],
+): string | undefined {
+  if (data[key] === undefined) return undefined;
+  return text(data, key, file, issues);
+}
 function strings(
   value: unknown,
   key: string,
@@ -76,6 +85,11 @@ async function yamlFile(file: string, display: string, issues: ValidationIssue[]
     issue(issues, display, `Invalid YAML: ${(error as Error).message}`);
     return {};
   }
+}
+async function isReallyContained(root: string, candidate: string): Promise<boolean> {
+  const [realRoot, realCandidate] = await Promise.all([fs.realpath(root), fs.realpath(candidate)]);
+  const relative = path.relative(realRoot, realCandidate);
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
 }
 function parseQuestion(raw: string, file: string, issues: ValidationIssue[]): Question | undefined {
   let data: Data;
@@ -119,23 +133,72 @@ function parseQuestion(raw: string, file: string, issues: ValidationIssue[]): Qu
             file,
             `Question "${id}" references answer "${answer}", but no option with that ID exists.`,
           );
+    if (
+      type === 'multiple_select' &&
+      Array.isArray(data.answer) &&
+      new Set(data.answer).size !== data.answer.length
+    )
+      issue(issues, file, `Question "${id}" answer must not contain duplicate option IDs.`);
+  } else if (optionsRaw !== undefined) {
+    issue(issues, file, `Question "${id}" type "${type}" must not define options.`);
   } else if (type === 'true_false' && typeof data.answer !== 'boolean')
     issue(issues, file, `Question "${id}" answer must be true or false.`);
-  else if (type === 'numeric' && typeof data.answer !== 'number')
+  else if (type === 'numeric' && (typeof data.answer !== 'number' || !Number.isFinite(data.answer)))
     issue(issues, file, `Question "${id}" answer must be numeric.`);
   else if (type === 'short_answer' && typeof data.answer !== 'string')
     issue(issues, file, `Question "${id}" answer must be a string.`);
   else if (type === 'essay' && data.answer !== undefined)
     issue(issues, file, `Essay question "${id}" must not define an objective answer.`);
+  const essayFields = ['minimum_words', 'minimum_sentences', 'keywords', 'minimum_keywords'];
+  if (type !== 'essay' && essayFields.some((field) => data[field] !== undefined))
+    issue(issues, file, `Question "${id}" uses essay completion fields but is not an essay.`);
+  for (const field of ['minimum_words', 'minimum_sentences', 'minimum_keywords'])
+    if (
+      data[field] !== undefined &&
+      (!Number.isInteger(data[field]) || (data[field] as number) <= 0)
+    )
+      issue(issues, file, `Essay question "${id}" field "${field}" must be a positive integer.`);
+  const keywords = strings(data.keywords, 'keywords', file, issues);
+  if (data.keywords !== undefined && (!keywords?.length || keywords.some((word) => !word.trim())))
+    issue(
+      issues,
+      file,
+      `Essay question "${id}" keywords must be a non-empty list of non-empty strings.`,
+    );
+  if (
+    keywords &&
+    new Set(keywords.map((word) => word.toLocaleLowerCase().trim())).size !== keywords.length
+  )
+    issue(issues, file, `Essay question "${id}" keywords must be distinct.`);
+  if (data.minimum_keywords !== undefined && data.keywords === undefined)
+    issue(issues, file, `Essay question "${id}" minimum_keywords requires keywords.`);
+  if (
+    typeof data.minimum_keywords === 'number' &&
+    keywords &&
+    data.minimum_keywords > keywords.length
+  )
+    issue(
+      issues,
+      file,
+      `Essay question "${id}" minimum_keywords must not exceed the number of keywords.`,
+    );
   if (
     data.tolerance !== undefined &&
-    (type !== 'numeric' || typeof data.tolerance !== 'number' || data.tolerance < 0)
+    (type !== 'numeric' ||
+      typeof data.tolerance !== 'number' ||
+      !Number.isFinite(data.tolerance) ||
+      data.tolerance < 0)
   )
     issue(issues, file, `Question "${id}" has invalid tolerance.`);
-  if (data.points !== undefined && (typeof data.points !== 'number' || data.points < 0))
+  if (
+    data.points !== undefined &&
+    (typeof data.points !== 'number' || !Number.isFinite(data.points) || data.points < 0)
+  )
     issue(issues, file, `Question "${id}" points must be non-negative.`);
   if (data.required !== undefined && typeof data.required !== 'boolean')
     issue(issues, file, `Question "${id}" required must be boolean.`);
+  const hint = optionalText(data, 'hint', file, issues);
+  const explanation = optionalText(data, 'explanation', file, issues);
   return {
     id,
     type: type as Question['type'],
@@ -143,10 +206,14 @@ function parseQuestion(raw: string, file: string, issues: ValidationIssue[]): Qu
     options,
     answer: data.answer,
     tolerance: data.tolerance as number | undefined,
-    hint: typeof data.hint === 'string' ? data.hint : undefined,
-    explanation: typeof data.explanation === 'string' ? data.explanation : undefined,
+    hint,
+    explanation,
     points: typeof data.points === 'number' ? data.points : 1,
     required: typeof data.required === 'boolean' ? data.required : true,
+    minimum_words: data.minimum_words as number | undefined,
+    minimum_sentences: data.minimum_sentences as number | undefined,
+    keywords,
+    minimum_keywords: data.minimum_keywords as number | undefined,
   };
 }
 export function parseLessonSource(
@@ -193,6 +260,7 @@ export function parseLessonSource(
       meta.passing_score !== undefined &&
       (type !== 'assessment' ||
         typeof meta.passing_score !== 'number' ||
+        !Number.isFinite(meta.passing_score) ||
         meta.passing_score < 0 ||
         meta.passing_score > 1)
     )
@@ -218,10 +286,16 @@ export function parseLessonSource(
         return `\n<div data-mcf-question="${q?.id ?? 'invalid'}"></div>\n`;
       },
     );
+    if (typeof meta.question_pool_size === 'number' && meta.question_pool_size > questions.length)
+      issue(
+        issues,
+        file,
+        `Activity "${id}" question_pool_size exceeds its ${questions.length} available questions.`,
+      );
     activities.push({
       id,
       type: type as Activity['type'],
-      title: typeof meta.title === 'string' ? meta.title : undefined,
+      title: optionalText(meta, 'title', file, issues),
       passing_score: meta.passing_score as number | undefined,
       randomize: meta.randomize as boolean | undefined,
       question_pool_size: meta.question_pool_size as number | undefined,
@@ -237,15 +311,20 @@ export function parseLessonSource(
   )
     issue(issues, file, 'Unclosed activity container or content outside an activity.');
   if (!activities.length) issue(issues, file, 'Lesson must contain at least one activity.');
-  const ids = activities.flatMap((a) => [a.id, ...a.questions.map((q) => q.id)]);
-  if (new Set(ids).size !== ids.length)
-    issue(issues, file, 'Activity and question IDs must be unique within the lesson.');
+  const activityIds = activities.map((activity) => activity.id);
+  const questionIds = activities.flatMap((activity) =>
+    activity.questions.map((question) => question.id),
+  );
+  if (new Set(activityIds).size !== activityIds.length)
+    issue(issues, file, 'Activity IDs must be unique within the lesson.');
+  if (new Set(questionIds).size !== questionIds.length)
+    issue(issues, file, 'Question IDs must be unique within the lesson.');
   return {
     id: identifier(front, 'id', file, issues),
     title: text(front, 'title', file, issues) ?? '',
-    description: typeof front.description === 'string' ? front.description : undefined,
+    description: optionalText(front, 'description', file, issues),
     authors: strings(front.authors, 'authors', file, issues),
-    license: typeof front.license === 'string' ? front.license : undefined,
+    license: optionalText(front, 'license', file, issues),
     source: file,
     activities,
   };
@@ -296,12 +375,21 @@ export async function parseCourse(input: string): Promise<Course> {
       }
       try {
         if (!(await fs.stat(chapterDir)).isDirectory()) throw new Error();
+        if (!(await isReallyContained(root, chapterDir))) {
+          issue(issues, 'manifest.yaml', `Chapter path escapes the course root: ${source}`);
+          continue;
+        }
       } catch {
         issue(issues, 'manifest.yaml', `Chapter path does not exist: ${source}`);
         continue;
       }
       const display = `${source}/chapter.yaml`;
       const data = await yamlFile(path.join(chapterDir, 'chapter.yaml'), display, issues);
+      try {
+        if (!(await fs.stat(path.join(chapterDir, 'lessons'))).isDirectory()) throw new Error();
+      } catch {
+        issue(issues, display, 'Required lessons/ directory does not exist.');
+      }
       const lessons: Lesson[] = [];
       const refs = data.lessons;
       if (!Array.isArray(refs) || !refs.length)
@@ -317,6 +405,10 @@ export async function parseCourse(input: string): Promise<Course> {
           if (path.extname(lessonPath) !== '.mcf')
             issue(issues, display, `Lesson must use .mcf extension: ${ref}`);
           try {
+            if (!(await isReallyContained(root, lessonPath))) {
+              issue(issues, display, `Lesson path escapes the course root: ${ref}`);
+              continue;
+            }
             lessons.push(
               parseLessonSource(
                 await fs.readFile(lessonPath, 'utf8'),
@@ -331,42 +423,64 @@ export async function parseCourse(input: string): Promise<Course> {
       chapters.push({
         id: identifier(data, 'id', display, issues),
         title: text(data, 'title', display, issues) ?? '',
-        description: typeof data.description === 'string' ? data.description : undefined,
+        description: optionalText(data, 'description', display, issues),
         source,
         lessons,
       });
     }
-  for (const [kind, ids] of [
-    ['chapter', chapters.map((x) => x.id)],
-    ['lesson', chapters.flatMap((x) => x.lessons.map((y) => y.id))],
-  ] as const)
-    if (new Set(ids).size !== ids.length)
-      issue(
-        issues,
-        'manifest.yaml',
-        `${kind[0].toUpperCase() + kind.slice(1)} IDs must be unique within the course.`,
-      );
+  const chapterIds = chapters.map((chapter) => chapter.id);
+  if (new Set(chapterIds).size !== chapterIds.length)
+    issue(issues, 'manifest.yaml', 'Chapter IDs must be unique within the course.');
+  const lessonSources = new Map<string, Set<string>>();
+  for (const lesson of chapters.flatMap((chapter) => chapter.lessons)) {
+    const sources = lessonSources.get(lesson.id) ?? new Set<string>();
+    sources.add(lesson.source);
+    lessonSources.set(lesson.id, sources);
+  }
+  if ([...lessonSources.values()].some((sources) => sources.size > 1))
+    issue(
+      issues,
+      'manifest.yaml',
+      'Distinct lesson files must use unique lesson IDs within the course.',
+    );
   const course: Course = {
     mcf: '1.0',
     id: identifier(manifest, 'id', 'manifest.yaml', issues),
     title: text(manifest, 'title', 'manifest.yaml', issues) ?? '',
     language: text(manifest, 'language', 'manifest.yaml', issues) ?? '',
-    description: typeof manifest.description === 'string' ? manifest.description : undefined,
+    description: optionalText(manifest, 'description', 'manifest.yaml', issues),
     authors: strings(manifest.authors, 'authors', 'manifest.yaml', issues),
-    license: typeof manifest.license === 'string' ? manifest.license : undefined,
-    version: typeof manifest.version === 'string' ? manifest.version : undefined,
-    cover: typeof manifest.cover === 'string' ? manifest.cover : undefined,
+    license: optionalText(manifest, 'license', 'manifest.yaml', issues),
+    version: optionalText(manifest, 'version', 'manifest.yaml', issues),
+    cover: optionalText(manifest, 'cover', 'manifest.yaml', issues),
     root,
     chapters,
   };
   const checkReference = async (ref: string, lesson?: Lesson) => {
-    if (/^(?:https?:|youtube:|mailto:|#)/i.test(ref)) return;
     const display = lesson?.source ?? 'manifest.yaml';
+    if (/^youtube:/i.test(ref)) {
+      if (!/^youtube:[A-Za-z0-9_-]+$/.test(ref))
+        issue(issues, display, `Invalid YouTube provider reference: ${ref}`);
+      return;
+    }
+    if (/^https?:/i.test(ref)) {
+      try {
+        const url = new URL(ref);
+        if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) throw new Error();
+      } catch {
+        issue(issues, display, `Invalid remote URL: ${ref}`);
+      }
+      return;
+    }
+    if (/^(?:mailto:|#)/i.test(ref)) return;
     const base = lesson ? path.dirname(path.join(root, lesson.source)) : root;
     const resolved = portablePath(root, base, ref, display, issues);
     if (!resolved) return;
     try {
       if (!(await fs.stat(resolved)).isFile()) throw new Error();
+      if (!(await isReallyContained(root, resolved))) {
+        issue(issues, display, `Path escapes the course root: ${ref}`);
+      }
     } catch {
       issue(issues, display, `Referenced local asset does not exist: ${ref}`);
     }
@@ -384,7 +498,7 @@ export async function parseCourse(input: string): Promise<Course> {
     ]);
     for (const content of richFields) {
       const refs = [
-        ...content.matchAll(/!\[[^\]]*\]\(([^\s)]+)|@\[(?:audio|video)\]\(([^\s)]+)/g),
+        ...content.matchAll(/!?\[[^\]]*\]\(([^\s)]+)|@\[(?:audio|video)\]\(([^\s)]+)/g),
       ].map((match) => match[1] ?? match[2]);
       for (const ref of refs) await checkReference(ref, lesson);
     }

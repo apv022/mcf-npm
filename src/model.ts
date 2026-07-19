@@ -16,6 +16,10 @@ export interface Question {
   explanation?: string;
   points: number;
   required: boolean;
+  minimum_words?: number;
+  minimum_sentences?: number;
+  keywords?: string[];
+  minimum_keywords?: number;
 }
 export interface Activity {
   id: string;

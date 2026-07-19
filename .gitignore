@@ -4,3 +4,6 @@ courses/
 coverage/
 *.log
 .DS_Store
+.browser-courses/
+playwright-report/
+test-results/

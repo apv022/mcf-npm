@@ -2,6 +2,8 @@
 id: rich-content
 title: "Rich Content"
 description: "Markdown, math, images, audio, video, tables, and code."
+authors: ["MCF Project"]
+license: CC0-1.0
 ---
 
 :::mcf-activity
@@ -29,9 +31,9 @@ const learning = 'local-first';
 
 ![A simple learning path](../../../assets/images/path.svg)
 
-@[audio](../../../assets/audio/tone.wav "A generated tone")
+@[audio](../../../assets/audio/t-rex-roar.mp3 "CC0 audio sample")
 
-@[video](../../../assets/video/demo.mp4 "A generated demonstration")
+@[video](../../../assets/video/flower.mp4 "CC0 video sample")
 
 @[video](youtube:dQw4w9WgXcQ "Remote video example")
 
