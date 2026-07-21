@@ -19,9 +19,39 @@ const course = window.MCF_COURSE;
 if (location.protocol === 'file:') document.documentElement.classList.add('file-protocol');
 const state: ProgressState = loadState(course);
 const lessonId = document.body.dataset.lesson;
-const lesson = course.lessons.find((item) => item.id === lessonId);
+const standalone = document.body.dataset.standalone === 'true';
+let activeLessonId = lessonId || course.lessons[0]?.id;
+let lesson = course.lessons.find((item) => item.id === activeLessonId);
+const activeSection = () =>
+  standalone ? document.querySelector<HTMLElement>(`.standalone-lesson[data-lesson="${CSS.escape(activeLessonId || '')}"]`) : document;
+if (standalone) {
+  const requested = decodeURIComponent(location.hash.replace(/^#lesson-/, ''));
+  if (course.lessons.some((item) => item.id === requested)) activeLessonId = requested;
+  lesson = course.lessons.find((item) => item.id === activeLessonId);
+  document.querySelectorAll<HTMLElement>('.standalone-lesson').forEach((section) => {
+    section.classList.toggle('active', section.dataset.lesson === activeLessonId);
+  });
+  document.querySelectorAll<HTMLAnchorElement>('.lesson-link').forEach((link) =>
+    link.addEventListener('click', () => {
+      activeLessonId = link.dataset.lessonId || activeLessonId;
+      lesson = course.lessons.find((item) => item.id === activeLessonId);
+      document.querySelectorAll<HTMLElement>('.standalone-lesson').forEach((section) =>
+        section.classList.toggle('active', section.dataset.lesson === activeLessonId),
+      );
+    }),
+  );
+  window.addEventListener('hashchange', () => {
+    const next = decodeURIComponent(location.hash.replace(/^#lesson-/, ''));
+    if (!course.lessons.some((item) => item.id === next)) return;
+    activeLessonId = next;
+    lesson = course.lessons.find((item) => item.id === activeLessonId);
+    document.querySelectorAll<HTMLElement>('.standalone-lesson').forEach((section) =>
+      section.classList.toggle('active', section.dataset.lesson === activeLessonId),
+    );
+  });
+}
 const key = (activity: ActivityDefinition, question?: QuestionDefinition) =>
-  `${lessonId}:${activity.id}${question ? `:${question.id}` : ''}`;
+  `${activeLessonId}:${activity.id}${question ? `:${question.id}` : ''}`;
 function persist(): void {
   saveState(course, state);
   updateCompletion();
@@ -157,7 +187,7 @@ function submitAssessment(activity: ActivityDefinition, container: HTMLElement):
   persist();
 }
 function updateCompletion(): void {
-  if (lesson && lessonId) {
+  if (lesson && activeLessonId) {
     for (const activity of lesson.activities ?? []) {
       const selected = selectedQuestions(activity);
       const complete =
@@ -173,14 +203,14 @@ function updateCompletion(): void {
         .querySelector(`[data-activity="${CSS.escape(activity.id)}"]`)
         ?.classList.toggle('complete', complete);
     }
-    state.lessons[lessonId] = (lesson.activities ?? []).every(
+    state.lessons[activeLessonId] = (lesson.activities ?? []).every(
       (activity) => state.activities[key(activity)],
     );
   }
   refreshProgress(course, state);
   saveState(course, state);
 }
-for (const activityElement of document.querySelectorAll<HTMLElement>('.activity')) {
+for (const activityElement of (activeSection() ?? document).querySelectorAll<HTMLElement>('.activity')) {
   const activity = lesson?.activities?.find((item) => item.id === activityElement.dataset.activity);
   if (!activity) continue;
   const order = chooseQuestions(activity),

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module';
 import { Command } from 'commander';
-import { compile } from './compiler.js';
+import { compile, compileSingleFile } from './compiler.js';
 import { ValidationError } from './model.js';
 import { parseCourse } from './parser.js';
 
@@ -30,11 +30,19 @@ program
 program
   .command('compile')
   .argument('<course>', 'MCF course directory')
-  .option('-o, --output <directory>', 'course library output', 'courses')
+  .option('-o, --output <directory>', 'course library output')
+  .option('--single-file <file>', 'standalone HTML output')
   .action(async (course, options) => {
     try {
-      const result = await compile(course, options.output);
-      console.log(`Compiled ${result.course.title} to ${result.directory}`);
+      if (options.output && options.singleFile)
+        throw new Error('--output and --single-file are mutually exclusive.');
+      if (options.singleFile) {
+        const result = await compileSingleFile(course, options.singleFile);
+        console.log(`Compiled ${result.course.title} to ${result.file}`);
+      } else {
+        const result = await compile(course, options.output ?? 'courses');
+        console.log(`Compiled ${result.course.title} to ${result.directory}`);
+      }
     } catch (error) {
       fail(error);
     }

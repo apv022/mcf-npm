@@ -14,6 +14,7 @@ npm run build
 npm run mcf -- validate examples/minimal
 npm run mcf -- compile examples/minimal
 npm run mcf -- compile examples/minimal --output ./courses
+npm run mcf -- compile examples/minimal --single-file ./exports/minimal.html
 ```
 
 Replace `examples/minimal` with the path to your own MCF package. The `npm run mcf -- ...` form is the recommended repository workflow because it requires no global installation or administrator permissions.
@@ -24,11 +25,17 @@ The compiler also exposes a small ESM API:
 
 ```js
 import { compile } from 'mcf-npm';
+import { compileSingleFile } from 'mcf-npm';
 import { parseCourse } from 'mcf-npm/parser';
 
 await parseCourse('./my-course');
 await compile('./my-course', './courses');
+await compileSingleFile('./my-course', './exports/my-course.html');
 ```
+
+`--output` creates the normal multi-file course library. `--single-file` creates one standalone HTML document whose reader UI, course data, lessons, styles, scripts, KaTeX resources, and local media are embedded in the document. Its parent directory is created automatically, and recompilation atomically replaces the target. The two options are mutually exclusive; validation always completes before the target is written. A standalone target must be outside the source package.
+
+Standalone files can be opened directly as local files without Node.js, a server, sibling files, or an internet connection for local course content. Remote URLs and YouTube still require the network; YouTube keeps the existing direct-file fallback behavior.
 
 See [Authoring MCF courses](docs/authoring.md) for package layout, metadata, activities, questions, math, media, validation rules, and complete syntax examples.
 

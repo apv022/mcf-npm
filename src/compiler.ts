@@ -14,6 +14,17 @@ async function write(file: string, content: string) {
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, content);
 }
+async function atomicWrite(file: string, content: string) {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const temporary = `${file}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    await fs.writeFile(temporary, content);
+    await fs.rename(temporary, file);
+  } catch (error) {
+    await fs.rm(temporary, { force: true });
+    throw error;
+  }
+}
 async function copyDir(source: string, target: string) {
   try {
     await fs.cp(source, target, { recursive: true, force: true });
@@ -201,6 +212,92 @@ async function readerStyles(): Promise<string> {
   return (
     await Promise.all(files.map((file) => fs.readFile(path.join(directory, file), 'utf8')))
   ).join('\n');
+}
+
+function mimeType(file: string): string {
+  const extension = path.extname(file).toLowerCase();
+  return ({
+    '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg', '.mp4': 'video/mp4', '.webm': 'video/webm', '.woff': 'font/woff',
+    '.woff2': 'font/woff2', '.ttf': 'font/ttf',
+  }[extension] ?? 'application/octet-stream');
+}
+async function dataUrl(file: string): Promise<string> {
+  return `data:${mimeType(file)};base64,${(await fs.readFile(file)).toString('base64')}`;
+}
+async function standaloneAssets(course: Course): Promise<Map<string, string>> {
+  const assets = new Map<string, string>();
+  const files: string[] = [];
+  async function collect(directory: string, prefix: string) {
+    try {
+      for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+        const name = path.join(prefix, entry.name), full = path.join(directory, entry.name);
+        if (entry.isDirectory()) await collect(full, name);
+        else files.push(name);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  await collect(course.root, '');
+  if (course.cover && !/^https?:/i.test(course.cover)) files.push(course.cover);
+  for (const relative of [...new Set(files)]) {
+    const file = path.join(course.root, relative);
+    if (/\.(?:svg|png|jpe?g|webp|gif|mp3|wav|ogg|mp4|webm|woff2?|ttf)$/i.test(relative))
+      assets.set(relative.split(path.sep).join('/'), await dataUrl(file));
+  }
+  return assets;
+}
+async function inlineStandalone(
+  html: string,
+  course: Course,
+  styles: string,
+  katexStyles: string,
+): Promise<string> {
+  const assets = await standaloneAssets(course);
+  for (const [relative, url] of assets) {
+    html = html.split(`../${relative}`).join(url).split(relative).join(url);
+  }
+  const katexFonts = new Map<string, string>();
+  for (const file of await fs.readdir(path.join(katexRoot, 'fonts'))) {
+    katexFonts.set(`fonts/${file}`, await dataUrl(path.join(katexRoot, 'fonts', file)));
+  }
+  for (const [relative, url] of katexFonts) katexStyles = katexStyles.split(relative).join(url);
+  const player = await fs.readFile(path.join(readerRoot, 'player.js'), 'utf8');
+  return html
+    .replace(/<link rel="stylesheet" href="[^"]+">\s*/g, '')
+    .replace(/<script src="[^"]+"><\/script>\s*/g, '')
+    .replace('</head>', `<style>${styles}</style><style>${katexStyles}</style></head>`)
+    .replace('</body>', `<script>${player}</script></body>`);
+}
+
+function standaloneSidebar(course: Course): string {
+  return `<aside class="sidebar"><h1>${escape(course.title)}</h1>
+  <div class="progress"><i data-progress-bar style="width:0"></i></div><b data-progress>0%</b><nav>
+${course.chapters.map((chapter) => `<div><div class="chapter-label">${escape(chapter.title)}</div>
+${chapter.lessons.map((lesson) => `<a class="lesson-link" data-lesson-id="${escape(lesson.id)}" href="#lesson-${encodeURIComponent(lesson.id)}">${escape(lesson.title)}</a>`).join('\n')}</div>`).join('\n')}
+  </nav></aside>`;
+}
+
+export async function compileSingleFile(input: string, output: string): Promise<{ course: Course; file: string }> {
+  const course = await parseCourse(input);
+  const file = path.resolve(output), sourceRoot = path.resolve(input);
+  if (file === sourceRoot || file.startsWith(`${sourceRoot}${path.sep}`))
+    throw new Error('Standalone output must not be inside the source course package.');
+  const lessons = uniqueLessons(course);
+  const sections = lessons.map((lesson, index) => `<section class="standalone-lesson" id="lesson-${encodeURIComponent(lesson.id)}" data-lesson="${escape(lesson.id)}">
+    <header class="lesson-header"><span class="eyebrow">Lesson ${index + 1} of ${lessons.length}</span><h1>${escape(lesson.title)}</h1>${lesson.description ? `<p>${escape(lesson.description)}</p>` : ''}</header>
+${lessonBody(lesson, course)}
+  </section>`).join('\n');
+  const body = `<style>.standalone-lesson{display:none}.standalone-lesson.active{display:block}</style><div class="course-shell standalone"><div>${standaloneSidebar(course)}</div><main class="main"><div class="lesson"><section class="standalone-overview"><h1>${escape(course.title)}</h1><p>${escape(course.description ?? '')}</p><p>${escape((course.authors ?? []).join(', '))}</p></section>${sections}<div class="badge hidden"><div class="badge-mark">✓</div><h2>Course complete</h2><p>${escape(course.title)}</p><p>Completed <span data-completion-date></span></p></div></div></main></div>
+<script>window.MCF_COURSE = ${JSON.stringify(data(course), null, 2).replace(/</g, '\\u003c')};</script>`;
+  const styles = await readerStyles();
+  const katexStyles = await fs.readFile(path.join(katexRoot, 'katex.min.css'), 'utf8');
+  const html = page(course.title, course.language, body, 'styles.css', 'player.js', 'katex/katex.min.css')
+    .replace('<body>', '<body data-standalone="true">');
+  await atomicWrite(file, await inlineStandalone(html, course, styles, katexStyles));
+  return { course, file };
 }
 export async function compile(
   input: string,
