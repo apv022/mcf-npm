@@ -6,7 +6,7 @@ MCF source directory
   → typed model and semantic/reference validation
   → Markdown, media, and compile-time KaTeX rendering
   → sanitized, structurally formatted HTML
-  → atomic course-directory replacement
+  → atomic course-directory or standalone-file replacement
   → updated static course library
   → browser reader and local progress state
 ```
@@ -41,7 +41,7 @@ Important root configuration files are:
 - `src/model.ts` defines the typed course, chapter, lesson, activity, question, option, and validation-diagnostic structures.
 - `src/parser.ts` discovers packages; parses YAML, lesson frontmatter, activity containers, and question fences; preserves declared order; and validates field types, identifiers, answer references, uniqueness, path portability, real-path containment, and asset existence.
 - `src/render.ts` converts rich content to HTML. It protects math before Markdown parsing, renders KaTeX, resolves local/remote media, generates controls for each question type, and sanitizes the result.
-- `src/compiler.ts` creates course data, pages, copied assets, reader runtime, CSS, and local KaTeX files. It also maintains the root library catalog.
+- `src/compiler.ts` creates course data, pages, copied assets, reader runtime, CSS, and local KaTeX files. It also maintains the root library catalog and can assemble the same reader into one standalone HTML file.
 - `src/cli.ts` exposes `validate` and `compile`, maps `ValidationError` instances to readable diagnostics, returns nonzero status on failure, and reads its version from `package.json`.
 
 ## Compilation pipeline
@@ -54,6 +54,10 @@ Important root configuration files are:
 6. Local assets, referenced files, bundled reader JavaScript, concatenated CSS, and KaTeX CSS/fonts are copied into the staging course.
 7. The previous directory for the same course ID is removed and the staging directory is renamed into place. Other course directories are preserved.
 8. `courses.json`, root `library.js`, `styles.css`, and `index.html` are updated. Library entries are sorted by title.
+
+### Standalone compilation
+
+`compileSingleFile(input, output)` uses the same parse, validation, ordering, Markdown, sanitization, question, and activity-rendering functions as directory compilation. It emits all lessons into one document, changes lesson links to internal anchors, and enables the reader's standalone lesson switcher. Reader JavaScript and CSS are inlined; local course media, cover files, KaTeX CSS, and KaTeX fonts become data URLs. The target is written through a temporary sibling file and renamed into place only after validation and rendering succeed. It never updates the course library catalog.
 
 The generated `course.json` and `courses.json` files are inspectable metadata. For direct-file compatibility, equivalent data is embedded into ordinary scripts; the browser reader does not fetch those JSON files.
 
